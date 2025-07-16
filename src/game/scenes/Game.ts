@@ -5,8 +5,6 @@ export class Game extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
     background: Phaser.GameObjects.Image;
     gameText: Phaser.GameObjects.Text;
-    character: Phaser.Physics.Arcade.Sprite;
-    trees: Phaser.Physics.Arcade.Group;
     keys: Phaser.Types.Input.Keyboard.CursorKeys;
     keyZ: Phaser.Input.Keyboard.Key;
     keyQ: Phaser.Input.Keyboard.Key;
@@ -16,6 +14,9 @@ export class Game extends Scene {
     keyA: Phaser.Input.Keyboard.Key;
     keyE: Phaser.Input.Keyboard.Key;
 
+    character: Phaser.Physics.Arcade.Sprite;
+    trees: Phaser.Physics.Arcade.Group;
+
     moveSpeed: number = 250;
     delayAction: number = 500;
     rangeAction: number = 40;
@@ -24,10 +25,14 @@ export class Game extends Scene {
     rangeIncreased: boolean = false;
     delayIncreased: boolean = false;
 
+    cyclopGroup: Phaser.Physics.Arcade.Group;
+    cyclop: Phaser.Physics.Arcade.Sprite;
+    cyclopSpeed: number = 100;
+
     fps: number = 60;
     distanceLines: Phaser.GameObjects.Graphics;
     nextActionTime: number = 0;
-    plankCount: number = 9;
+    plankCount: number = 0;
     joystick: Phaser.GameObjects.Image | null = null;
     joystickThumb: Phaser.GameObjects.Image | null = null;
     joystickRadius: number = 60;
@@ -110,6 +115,7 @@ export class Game extends Scene {
 
         this.initCounter();
         this.initTrees();
+        this.initCyclop();
 
         // Initialisation des contrôles tactiles pour mobile
         if (this.isMobile) {
@@ -119,6 +125,26 @@ export class Game extends Scene {
         this.physics.add.collider(this.character, this.trees);
 
         EventBus.emit("current-scene-ready", this);
+    }
+
+    private initCyclop() {
+        // Création du cyclope à une position aléatoire sur la carte
+        const randomX = Phaser.Math.Between(100, this.scale.width - 100);
+        const randomY = Phaser.Math.Between(100, this.scale.height - 100);
+
+        this.cyclop = this.physics.add
+            .sprite(randomX, randomY, "cyclop")
+            .setScale(2)
+            .setOrigin(0.5, 0.5)
+            .setInteractive();
+
+        this.physics.add.collider(this.cyclop, this.trees);
+        this.cyclop.setCollideWorldBounds(true);
+
+        this.cyclopGroup = this.physics.add.group({
+            allowGravity: false,
+            immovable: true,
+        });
     }
 
     private initMobileControls() {
@@ -265,12 +291,21 @@ export class Game extends Scene {
             .sprite(this.character.x, this.character.y, "sword")
             .setScale(2)
             .setDepth(0);
-        this.sword.setCollideWorldBounds(true);
 
         this.physics.add.collider(this.sword, this.trees, (_, tree) => {
             tree.destroy();
             this.plankCount++;
             this.gameText.setText(`Planks: ${this.plankCount}`);
+
+            if (this.sword) {
+                this.sword.destroy();
+                this.sword = null;
+            }
+        });
+
+        this.physics.add.collider(this.sword, this.cyclop, (_, cyclop) => {
+            cyclop.destroy();
+            this.initCyclop();
 
             if (this.sword) {
                 this.sword.destroy();
@@ -326,6 +361,70 @@ export class Game extends Scene {
             this.trees.add(tree);
         }
     }
+
+    private findNearestTree() {
+        let nearestTree = null;
+        let minDistance = Number.MAX_VALUE;
+
+        this.trees
+            .getChildren()
+            .forEach((gameObject: Phaser.GameObjects.GameObject) => {
+                const tree = gameObject as Phaser.Physics.Arcade.Sprite;
+                const distance = Phaser.Math.Distance.Between(
+                    this.character.x,
+                    this.character.y,
+                    tree.x,
+                    tree.y
+                );
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestTree = tree;
+                }
+            });
+
+        return minDistance < this.rangeAction ? nearestTree : null;
+    }
+
+    private drawRangeCircle() {
+        this.rangeCircle.clear();
+        this.rangeCircle.lineStyle(2, 0xffffff, this.isRangeVisible ? 0.8 : 0);
+        this.rangeCircle.strokeCircle(
+            this.character.x,
+            this.character.y,
+            this.rangeAction
+        );
+    }
+
+    // drawDistanceLines() {
+    //     this.distanceLines.clear();
+
+    //     this.trees
+    //         .getChildren()
+    //         .forEach((gameObject: Phaser.GameObjects.GameObject) => {
+    //             const tree = gameObject as Phaser.Physics.Arcade.Sprite;
+    //             const distance = Phaser.Math.Distance.Between(
+    //                 this.character.x,
+    //                 this.character.y,
+    //                 tree.x,
+    //                 tree.y
+    //             );
+
+    //             if (distance < 40) {
+    //                 this.distanceLines.lineStyle(5, 0xffffff, 0.8);
+    //             } else if (distance < 200) {
+    //                 this.distanceLines.lineStyle(1, 0xffff00, 0.6);
+    //             } else {
+    //                 this.distanceLines.lineStyle(1, 0xffffff, 0);
+    //             }
+
+    //             this.distanceLines.beginPath();
+    //             this.distanceLines.moveTo(this.character.x, this.character.y);
+    //             this.distanceLines.lineTo(tree.x, tree.y);
+    //             this.distanceLines.strokePath();
+    //         });
+
+    // }
 
     update() {
         this.character.setVelocity(0);
@@ -406,6 +505,31 @@ export class Game extends Scene {
 
         this.character.setVelocity(dx * this.moveSpeed, dy * this.moveSpeed);
 
+        if (this.cyclop) {
+            const cyclopAngle = Phaser.Math.Angle.Between(
+                this.cyclop.x,
+                this.cyclop.y,
+                this.character.x,
+                this.character.y
+            );
+
+            this.cyclop.setVelocity(
+                Math.cos(cyclopAngle) * this.cyclopSpeed,
+                Math.sin(cyclopAngle) * this.cyclopSpeed
+            );
+
+            const distanceToCharacter = Phaser.Math.Distance.Between(
+                this.character.x,
+                this.character.y,
+                this.cyclop.x,
+                this.cyclop.y
+            );
+
+            if (distanceToCharacter < 100) {
+                true;
+            }
+        }
+
         // Dessiner le cercle de portée
         this.drawRangeCircle();
 
@@ -433,69 +557,5 @@ export class Game extends Scene {
         } else if (this.plankCount % 10 !== 0) {
             this.rangeIncreased = false;
         }
-    }
-
-    private drawRangeCircle() {
-        this.rangeCircle.clear();
-        this.rangeCircle.lineStyle(2, 0xffffff, this.isRangeVisible ? 0.8 : 0);
-        this.rangeCircle.strokeCircle(
-            this.character.x,
-            this.character.y,
-            this.rangeAction
-        );
-    }
-
-    // drawDistanceLines() {
-    //     this.distanceLines.clear();
-
-    //     this.trees
-    //         .getChildren()
-    //         .forEach((gameObject: Phaser.GameObjects.GameObject) => {
-    //             const tree = gameObject as Phaser.Physics.Arcade.Sprite;
-    //             const distance = Phaser.Math.Distance.Between(
-    //                 this.character.x,
-    //                 this.character.y,
-    //                 tree.x,
-    //                 tree.y
-    //             );
-
-    //             if (distance < 40) {
-    //                 this.distanceLines.lineStyle(5, 0xffffff, 0.8);
-    //             } else if (distance < 200) {
-    //                 this.distanceLines.lineStyle(1, 0xffff00, 0.6);
-    //             } else {
-    //                 this.distanceLines.lineStyle(1, 0xffffff, 0);
-    //             }
-
-    //             this.distanceLines.beginPath();
-    //             this.distanceLines.moveTo(this.character.x, this.character.y);
-    //             this.distanceLines.lineTo(tree.x, tree.y);
-    //             this.distanceLines.strokePath();
-    //         });
-
-    // }
-
-    findNearestTree() {
-        let nearestTree = null;
-        let minDistance = Number.MAX_VALUE;
-
-        this.trees
-            .getChildren()
-            .forEach((gameObject: Phaser.GameObjects.GameObject) => {
-                const tree = gameObject as Phaser.Physics.Arcade.Sprite;
-                const distance = Phaser.Math.Distance.Between(
-                    this.character.x,
-                    this.character.y,
-                    tree.x,
-                    tree.y
-                );
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearestTree = tree;
-                }
-            });
-
-        return minDistance < this.rangeAction ? nearestTree : null;
     }
 }

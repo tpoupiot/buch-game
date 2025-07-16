@@ -14,6 +14,7 @@ export class Boot extends Scene {
         this.load.image("tree", "assets/tree.png");
         this.load.image("star", "assets/star.png");
         this.load.image("sword", "assets/sword.png");
+        this.load.image("cyclop", "assets/cyclop.png");
     }
 
     create() {
