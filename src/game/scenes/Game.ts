@@ -26,7 +26,7 @@ export class Game extends Scene {
     delayIncreased: boolean = false;
 
     cyclopGroup: Phaser.Physics.Arcade.Group;
-    cyclop: Phaser.Physics.Arcade.Sprite;
+    cyclop: Phaser.Physics.Arcade.Sprite | null;
     cyclopSpeed: number = 100;
 
     fps: number = 60;
@@ -43,9 +43,11 @@ export class Game extends Scene {
     isMobile: boolean = false;
     rangeCircle: Phaser.GameObjects.Graphics;
     isRangeVisible: boolean = false;
+
+    swords: Phaser.Physics.Arcade.Group | null = null;
     sword: Phaser.Physics.Arcade.Sprite | null = null;
     swordSpeed: number = 400;
-    swordCooldown: number = 2000;
+    swordCooldown: number = 500;
     nextSwordTime: number = 0;
 
     constructor() {
@@ -53,14 +55,10 @@ export class Game extends Scene {
     }
 
     create() {
-        // Détection si l'appareil est mobile
         this.isMobile =
             this.sys.game.device.input.touch &&
             !this.sys.game.device.os.desktop;
 
-        console.log("isMobile:", this.isMobile);
-
-        // Configuration du framerate à 60 FPS
         this.physics.world.setFPS(this.fps);
 
         this.camera = this.cameras.main;
@@ -83,9 +81,10 @@ export class Game extends Scene {
             .setOrigin(0.5, 0.5)
             .setInteractive();
 
+        this.swords = this.physics.add.group();
+
         this.character.setCollideWorldBounds(true);
 
-        // Configuration des contrôles clavier pour desktop
         this.keyQ = this.input.keyboard!.addKey(
             Phaser.Input.Keyboard.KeyCodes.Q
         );
@@ -116,8 +115,8 @@ export class Game extends Scene {
         this.initCounter();
         this.initTrees();
         this.initCyclop();
+        this.createStatIndicator();
 
-        // Initialisation des contrôles tactiles pour mobile
         if (this.isMobile) {
             this.initMobileControls();
         }
@@ -128,7 +127,6 @@ export class Game extends Scene {
     }
 
     private initCyclop() {
-        // Création du cyclope à une position aléatoire sur la carte
         const randomX = Phaser.Math.Between(100, this.scale.width - 100);
         const randomY = Phaser.Math.Between(100, this.scale.height - 100);
 
@@ -139,6 +137,30 @@ export class Game extends Scene {
             .setInteractive();
 
         this.physics.add.collider(this.cyclop, this.trees);
+        this.physics.add.overlap(
+            this.character,
+            this.cyclop,
+            () => {
+                this.cyclop?.destroy();
+                if (this.plankCount > 0) {
+                    this.plankCount -= 1;
+                }
+                this.gameText.setText(`Planks: ${this.plankCount}`);
+                this.initCyclop();
+
+                this.character.setScale(4, 2);
+                this.character.setTint(0xff0000);
+                this.tweens.add({
+                    targets: this.character,
+                    scale: 2,
+                    tint: 0xffffff,
+                    duration: 100,
+                    ease: "Sine.easeInOut",
+                });
+            },
+            undefined,
+            this
+        );
         this.cyclop.setCollideWorldBounds(true);
 
         this.cyclopGroup = this.physics.add.group({
@@ -262,6 +284,14 @@ export class Game extends Scene {
                 this.findNearestTree() as unknown as Phaser.Physics.Arcade.Sprite;
             if (nearestTree) {
                 const currentScale = nearestTree.scale;
+
+                nearestTree.setRotation(Phaser.Math.DegToRad(25));
+                this.tweens.add({
+                    targets: nearestTree,
+                    rotation: 0,
+                    duration: 100,
+                    ease: "Sine.easeInOut",
+                });
                 nearestTree.setScale(currentScale * 0.8);
 
                 // Animation charactère squeeze
@@ -284,35 +314,70 @@ export class Game extends Scene {
         }
     }
 
+    // Implémentation des épées multiples (swords)
     private throwSword(targetX: number, targetY: number) {
         if (this.time.now < this.nextSwordTime) return;
 
-        this.sword = this.physics.add
+        if (!this.swords) {
+            this.swords = this.physics.add.group();
+        }
+
+        // Création d'une nouvelle épée
+        const sword = this.physics.add
             .sprite(this.character.x, this.character.y, "sword")
             .setScale(2)
             .setDepth(0);
 
-        this.physics.add.collider(this.sword, this.trees, (_, tree) => {
-            tree.destroy();
-            this.plankCount++;
-            this.gameText.setText(`Planks: ${this.plankCount}`);
+        this.swords.add(sword);
 
-            if (this.sword) {
-                this.sword.destroy();
-                this.sword = null;
+        // Collision avec les arbres
+        this.physics.add.collider(sword, this.trees, (_: any, tree: any) => {
+            tree.setRotation(Phaser.Math.DegToRad(25));
+            this.tweens.add({
+                targets: tree,
+                rotation: 0,
+                duration: 100,
+                ease: "Sine.easeInOut",
+            });
+            tree.setScale(tree.scale * 0.8);
+
+            if (tree.scale <= 1) {
+                tree.destroy();
+                this.plankCount++;
+                this.gameText.setText(`Planks: ${this.plankCount}`);
             }
+            sword.destroy();
         });
 
-        this.physics.add.collider(this.sword, this.cyclop, (_, cyclop) => {
-            cyclop.destroy();
-            this.initCyclop();
+        // Collision avec le cyclope
+        if (this.cyclop) {
+            this.physics.add.collider(
+                sword,
+                this.cyclop,
+                (_: any, cyclop: any) => {
+                    this.cyclop?.setScale(3.5, 2);
+                    this.cyclop?.setTint(0xff0000);
+                    this.tweens.add({
+                        targets: cyclop,
+                        scale: 2,
+                        tint: 0xffffff,
+                        duration: 50,
+                        ease: "Sine.easeInOut",
+                        onComplete: () => {
+                            cyclop.destroy();
+                            this.cyclop = null;
+                            this.time.delayedCall(1000, () => {
+                                this.initCyclop();
+                            });
+                        },
+                    });
 
-            if (this.sword) {
-                this.sword.destroy();
-                this.sword = null;
-            }
-        });
+                    sword.destroy();
+                }
+            );
+        }
 
+        // Calcul de l'angle et de la vélocité
         const angle = Phaser.Math.Angle.Between(
             this.character.x,
             this.character.y,
@@ -320,31 +385,86 @@ export class Game extends Scene {
             targetY
         );
 
-        this.sword.rotation = angle + Math.PI / 2;
+        sword.rotation = angle + Math.PI / 2;
 
         this.physics.velocityFromRotation(
             angle,
             this.swordSpeed,
-            this.sword.body?.velocity
+            sword.body?.velocity
         );
 
         this.nextSwordTime = this.time.now + this.swordCooldown;
 
         this.time.delayedCall(2000, () => {
-            if (this.sword) {
-                this.sword.destroy();
-                this.sword = null;
+            if (sword && sword.active) {
+                this.tweens.add({
+                    targets: sword,
+                    scale: 0,
+                    duration: 100,
+                    ease: "Sine.easeInOut",
+                    onComplete: () => {
+                        sword.destroy();
+                    },
+                });
             }
         });
     }
 
     private initCounter() {
         this.gameText = this.add.text(16, 16, "Planks: 0", {
-            fontSize: "32px",
+            fontFamily: "Arial",
+            color: "#ffffff",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            padding: { left: 8, right: 8, top: 4, bottom: 4 },
         });
 
         this.gameText.setScrollFactor(0);
         this.gameText.setDepth(1);
+    }
+
+    private createStatIndicator() {
+        // Affiche la vitesse de déplacement et le cooldown de l'épée
+        const style = {
+            fontFamily: "Arial",
+            fontSize: "16px",
+            color: "#ffffff",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            padding: { left: 8, right: 8, top: 4, bottom: 4 },
+        };
+
+        const moveSpeedText = this.add.text(
+            16,
+            48,
+            `Vitesse : ${this.moveSpeed}`,
+            style
+        );
+        moveSpeedText.setScrollFactor(0);
+        moveSpeedText.setDepth(1);
+
+        const swordCooldownText = this.add.text(
+            16,
+            80,
+            `Cooldown épée : ${(this.swordCooldown / 1000).toFixed(2)}s`,
+            style
+        );
+        swordCooldownText.setScrollFactor(0);
+        swordCooldownText.setDepth(1);
+
+        // Si besoin d'accéder plus tard, stocker dans la classe
+        (this as any).moveSpeedText = moveSpeedText;
+        (this as any).swordCooldownText = swordCooldownText;
+    }
+
+    private createBonus() {
+        const rand = Math.random();
+        let typeBonus: "moveSpeed" | "swordCooldown";
+        if (rand < 0.5) {
+            typeBonus = "moveSpeed";
+        } else {
+            typeBonus = "swordCooldown";
+        }
+
+        return typeBonus;
     }
 
     private initTrees() {
@@ -540,9 +660,13 @@ export class Game extends Scene {
             this.plankCount % 5 === 0 &&
             !this.speedIncreased
         ) {
-            this.moveSpeed += 50;
-            this.delayAction -= 100;
+            this.moveSpeed += 20;
+            this.delayAction -= 20;
             this.speedIncreased = true;
+            (this as any).moveSpeedText.setText(`Vitesse : ${this.moveSpeed}`);
+            (this as any).swordCooldownText.setText(
+                `Cooldown épée : ${(this.swordCooldown / 1000).toFixed(2)}s`
+            );
         } else if (this.plankCount % 5 !== 0) {
             this.speedIncreased = false;
         }
@@ -552,7 +676,7 @@ export class Game extends Scene {
             this.plankCount % 10 === 0 &&
             !this.rangeIncreased
         ) {
-            this.rangeAction += 20;
+            this.rangeAction += 5;
             this.rangeIncreased = true;
         } else if (this.plankCount % 10 !== 0) {
             this.rangeIncreased = false;
