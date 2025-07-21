@@ -39,6 +39,8 @@ export class Game extends Scene {
     nextSwordTime: number = 0;
 
     cyclopSpawnTimer: Phaser.Time.TimerEvent | null = null;
+    cyclopTimer: number = 2000;
+    gameTime: number = 0;
 
     constructor() {
         super("Game");
@@ -48,7 +50,7 @@ export class Game extends Scene {
         this.physics.world.setFPS(this.fps);
 
         this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x00ff00);
+        this.camera.setBackgroundColor(0x00aa00);
 
         this.background = this.add.image(512, 384, "background");
         this.background.setAlpha(0.5);
@@ -76,9 +78,19 @@ export class Game extends Scene {
         this.createStatIndicator();
 
         this.cyclopSpawnTimer = this.time.addEvent({
-            delay: 2000,
+            delay: this.cyclopTimer,
             callback: () => {
                 this.cyclops.add(new Cyclop(this, this.char));
+            },
+            callbackScope: this,
+            loop: true,
+        });
+
+        this.gameCounter = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                this.gameTime += 1;
+                this.cyclopTimer -= this.gameTime;
             },
             callbackScope: this,
             loop: true,
@@ -155,7 +167,6 @@ export class Game extends Scene {
         swordCooldownText.setScrollFactor(0);
         swordCooldownText.setDepth(1);
 
-        // Si besoin d'accéder plus tard, stocker dans la classe
         (this as any).moveSpeedText = moveSpeedText;
         (this as any).swordCooldownText = swordCooldownText;
     }
@@ -231,10 +242,6 @@ export class Game extends Scene {
         let dx = 0;
         let dy = 0;
 
-        //     if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
-        //         const pointer = this.input.activePointer;
-        //         this.throwSword(pointer.worldX, pointer.worldY);
-        //     }
         if (this.trees.getLength() === 2) {
             this.initTrees();
         }
@@ -278,5 +285,11 @@ export class Game extends Scene {
         (this.cyclops.getChildren() as Cyclop[]).forEach((cyclop) => {
             cyclop.update();
         });
+
+        if (this.char.life === 0) {
+            this.scene.launch("GameOver", {
+                score: this.plankCount,
+            });
+        }
     }
 }

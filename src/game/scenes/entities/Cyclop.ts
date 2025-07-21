@@ -7,17 +7,21 @@ export class Cyclop extends Entity {
     currentSpeed: number;
     slowTimeout?: ReturnType<typeof setTimeout>;
     cyclopSpeed: number;
+    isOverlapping: boolean = false;
 
     constructor(scene: Game, target: Entity, x?: number, y?: number) {
         const posX = x ? x : Phaser.Math.Between(100, scene.scale.width - 100);
         const posY = y ? y : Phaser.Math.Between(100, scene.scale.height - 100);
         super(scene, posX, posY, "cyclop");
 
+        this.maxLife = 5;
+        this.life = this.maxLife;
+
         this.target = target;
         this.createEntityLifeBar();
         this.setCollideWorldBounds(true);
 
-        this.cyclopSpeed = 50;
+        this.cyclopSpeed = 80;
         this.currentSpeed = this.cyclopSpeed;
 
         scene.physics.add.overlap(
@@ -25,16 +29,15 @@ export class Cyclop extends Entity {
             this,
             () => {
                 if (!this.active) return;
+                if (this.isOverlapping) return;
+
+                this.isOverlapping = true;
                 this.destroyEntityLifeBar();
-                scene.tweens.add({
-                    targets: this,
-                    scale: 0,
-                    alpha: 0,
-                    duration: 100,
-                    onComplete: () => {
-                        this.destroy();
-                    },
-                });
+                this.destroy();
+                scene.char.takeDamage(this.damage);
+
+                console.log("Cyclop hit the character!");
+
                 if (scene.plankCount > 0) {
                     scene.plankCount -= 1;
                 }
@@ -65,6 +68,8 @@ export class Cyclop extends Entity {
             undefined,
             this
         );
+
+        scene.physics.add.collider(this, scene.cyclops);
     }
 
     update() {

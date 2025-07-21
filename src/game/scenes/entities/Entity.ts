@@ -89,8 +89,37 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
     }
 
     destroy(fromScene?: boolean): void {
-        this.destroyEntityLifeBar();
-        super.destroy(fromScene);
+        this.scene.tweens.add({
+            targets: this,
+            scale: 0,
+            alpha: 0,
+            duration: 100,
+            onComplete: () => {
+                super.destroy(fromScene);
+            },
+        });
+    }
+
+    takeDamage(damage: number) {
+        console.log(`Entity took ${damage} damage!`);
+
+        this.life -= damage;
+        if (this.life <= 0) {
+            this.destroyEntityLifeBar();
+            this.destroy();
+        } else {
+            this.updateEntityLifeBar();
+
+            this.setScale(4, 2);
+            this.setTint(0xff0000);
+            this.scene.tweens.add({
+                targets: this,
+                scale: 2,
+                tint: 0xffffff,
+                duration: 100,
+                ease: "Sine.easeInOut",
+            });
+        }
     }
 
     dash() {

@@ -12,8 +12,6 @@ export class Character extends Entity {
     constructor(scene: Game, x: number, y: number, texture: "character") {
         super(scene, x, y, texture);
 
-        this.maxLife = 3;
-        this.life = this.maxLife;
         this.damage = 1;
         this.delayAttack = 500;
         this.speed = 250;
@@ -172,6 +170,10 @@ export class Character extends Entity {
         //         });
         //     }
         // });
+    }
+
+    override destroy() {
+        return null;
     }
 
     update() {
