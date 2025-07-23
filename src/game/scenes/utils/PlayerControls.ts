@@ -18,6 +18,8 @@ export class PlayerControls {
     private keySpace: Phaser.Input.Keyboard.Key;
     private keyShift: Phaser.Input.Keyboard.Key;
 
+    private leftClick: boolean = false;
+
     constructor(scene: Game, character: Character) {
         this.character = character;
         this.scene = scene;
@@ -46,6 +48,22 @@ export class PlayerControls {
         this.keyShift = scene.input.keyboard!.addKey(
             Phaser.Input.Keyboard.KeyCodes.SHIFT
         );
+
+        scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+            if (pointer.leftButtonDown()) {
+                this.leftClick = true;
+            }
+        });
+
+        scene.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+            if (pointer.leftButtonReleased()) {
+                this.leftClick = false;
+            }
+        });
+    }
+
+    isLeftClickPressed(): boolean {
+        return this.leftClick;
     }
 
     update() {
@@ -65,12 +83,11 @@ export class PlayerControls {
             );
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
-            // throw sword
-            this.character.throwSword();
+        if (this.isLeftClickPressed()) {
+            this.character.handleThrowAction();
         }
 
-        if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+        if (this.keySpace.isDown) {
             this.scene.handleCutAction();
         }
 

@@ -9,6 +9,9 @@ export class Character extends Entity {
     isRangeVisible = false;
     cuttingRange: number;
 
+    private throwTime = 0;
+    private delayThrow = 500;
+
     constructor(scene: Game, x: number, y: number, texture: "character") {
         super(scene, x, y, texture);
 
@@ -77,99 +80,15 @@ export class Character extends Entity {
         }
     }
 
-    throwSword() {
-        const sword = new Sword(this.scene, this.x, this.y, this);
-        // if (this.time.now < this.nextSwordTime) return;
-        // if (!this.swords) {
-        //     this.swords = this.physics.add.group();
-        // }
-        // const sword = this.physics.add
-        //     .sprite(this.character.x, this.character.y, "sword")
-        //     .setScale(2)
-        //     .setDepth(0);
-        // this.swords.add(sword);
-        // this.physics.add.collider(sword, this.trees, (_: any, tree: any) => {
-        //     tree.setRotation(Phaser.Math.DegToRad(25));
-        //     this.tweens.add({
-        //         targets: tree,
-        //         rotation: 0,
-        //         duration: 100,
-        //         ease: "Sine.easeInOut",
-        //     });
-        //     tree.setScale(tree.scale * 0.8);
-        //     if (tree.scale <= 1) {
-        //         tree.destroy();
-        //         this.plankCount++;
-        //         this.gameText.setText(`Planks: ${this.plankCount}`);
-        //     }
-        //     sword.destroy();
-        // });
-        // if (this.cyclops) {
-        //     this.cyclops
-        //         .getChildren()
-        //         .forEach((cyclopObj: Phaser.GameObjects.GameObject) => {
-        //             const cyclop = cyclopObj as CyclopWithLife;
-        //             this.physics.add.collider(
-        //                 sword,
-        //                 cyclop,
-        //                 (_: any, cyclopHit: CyclopWithLife) => {
-        //                     if (!cyclopHit.active) return;
-        //                     if (typeof cyclopHit.cyclopLife === "undefined") {
-        //                         cyclopHit.cyclopLife = 3;
-        //                     }
-        //                     cyclopHit.cyclopLife--;
-        //                     cyclopHit.setScale(3.5, 2);
-        //                     cyclopHit.setTint(0xff0000);
-        //                     this.tweens.add({
-        //                         targets: cyclopHit,
-        //                         scale: 2,
-        //                         tint: 0xffffff,
-        //                         duration: 50,
-        //                         ease: "Sine.easeInOut",
-        //                     });
-        //                     this.updateCyclopLifeBar(cyclopHit);
-        //                     sword.destroy();
-        //                     if (cyclopHit.cyclopLife <= 0) {
-        //                         this.tweens.add({
-        //                             targets: cyclopHit,
-        //                             alpha: 0,
-        //                             duration: 100,
-        //                             onComplete: () => {
-        //                                 this.destroyCyclopLifeBar(cyclopHit);
-        //                                 cyclopHit.destroy();
-        //                             },
-        //                         });
-        //                     }
-        //                 }
-        //             );
-        //         });
-        // }
-        // const angle = Phaser.Math.Angle.Between(
-        //     this.character.x,
-        //     this.character.y,
-        //     targetX,
-        //     targetY
-        // );
-        // sword.rotation = angle + Math.PI / 2;
-        // this.physics.velocityFromRotation(
-        //     angle,
-        //     this.swordSpeed,
-        //     sword.body?.velocity
-        // );
-        // this.nextSwordTime = this.time.now + this.swordCooldown;
-        // this.time.delayedCall(2000, () => {
-        //     if (sword && sword.active) {
-        //         this.tweens.add({
-        //             targets: sword,
-        //             scale: 0,
-        //             duration: 100,
-        //             ease: "Sine.easeInOut",
-        //             onComplete: () => {
-        //                 sword.destroy();
-        //             },
-        //         });
-        //     }
-        // });
+    canThrow() {
+        return this.scene.time.now >= this.throwTime + this.delayThrow;
+    }
+
+    handleThrowAction() {
+        if (this.canThrow()) {
+            const sword = new Sword(this.scene, this.x, this.y, this);
+            this.throwTime = this.scene.time.now;
+        }
     }
 
     override destroy() {

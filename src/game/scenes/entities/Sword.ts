@@ -5,18 +5,19 @@ import { Entity } from "./Entity";
 export class Sword extends Entity {
     angle: number = 0;
     isOverlapping: boolean = false;
+    delayAttack: number;
+    throwTime: number = 0;
 
     constructor(scene: Game, x: number, y: number, target: Entity) {
         super(scene, x, y, "sword");
 
+        this.damage = 1;
+        this.delayAttack = 10;
+        this.speed = 300;
+        this.currentSpeed = this.speed;
+
         scene.add.existing(this);
         scene.physics.add.existing(this);
-
-        this.damage = 1;
-        this.delayAttack = 500;
-        this.speed = 200;
-        this.currentSpeed = this.speed;
-        this.maxLife = 4;
 
         const angle = Phaser.Math.Angle.Between(
             target.x,
@@ -47,9 +48,32 @@ export class Sword extends Entity {
             undefined,
             this
         );
+
+        scene.physics.add.overlap(
+            this,
+            scene.trees,
+            (sword: Sword, tree: Entity) => {
+                if (!sword.active || !tree.active) return;
+                if (sword.isOverlapping) return;
+                sword.isOverlapping = true;
+                tree.takeDamage(sword.damage);
+                sword.destroy();
+            }
+        );
     }
 
     destroy(fromScene?: boolean) {
         super.destroy(fromScene);
+    }
+
+    preUpdate() {
+        if (
+            this.x < 0 ||
+            this.x > this.scene.scale.width ||
+            this.y < 0 ||
+            this.y > this.scene.scale.height
+        ) {
+            this.destroy();
+        }
     }
 }

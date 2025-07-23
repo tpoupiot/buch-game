@@ -101,8 +101,6 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
     }
 
     takeDamage(damage: number) {
-        console.log(`Entity took ${damage} damage!`);
-
         this.life -= damage;
         if (this.life <= 0) {
             this.destroyEntityLifeBar();
