@@ -30,7 +30,6 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
         this.delayAttack = 500;
         this.speed = 100;
         this.currentSpeed = this.speed;
-        this.isOverlapingTree = false;
     }
 
     createEntityLifeBar() {

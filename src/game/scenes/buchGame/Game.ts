@@ -1,14 +1,16 @@
-import { EventBus } from "../EventBus";
+import { EventBus } from "../../EventBus";
 import { Scene } from "phaser";
 import { Cyclop } from "./entities/Cyclop";
 import { Character } from "./entities/Character";
 import { PlayerControls } from "./utils/PlayerControls";
 import { Tree } from "./entities/Tree";
+import { World } from "./World";
 
 export class Game extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
     background: Phaser.GameObjects.Image;
     gameText: Phaser.GameObjects.Text;
+    darkOverlay: Phaser.GameObjects.Rectangle;
 
     character: Phaser.Physics.Arcade.Sprite;
     trees: Phaser.Physics.Arcade.Group;
@@ -50,18 +52,11 @@ export class Game extends Scene {
         this.physics.world.setFPS(this.fps);
 
         this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x00aa00);
+        this.camera.setBackgroundColor(0x00b47e);
 
-        this.background = this.add.image(512, 384, "background");
-        this.background.setAlpha(0.5);
-
-        this.background.setScrollFactor(0);
-        this.background.setDepth(-1);
-        this.background.setScale(10);
-        this.background.setInteractive();
+        new World(this);
 
         this.distanceLines = this.add.graphics();
-        // this.rangeCircle = this.add.graphics();
 
         this.swords = this.physics.add.group();
 
@@ -76,6 +71,20 @@ export class Game extends Scene {
         this.initTrees();
         this.initCyclops();
         this.createStatIndicator();
+
+        // Create dark overlay
+        this.darkOverlay = this.add.rectangle(
+            0,
+            0,
+            this.cameras.main.width,
+            this.cameras.main.height,
+            0x000000,
+            0.3
+        );
+        this.darkOverlay.setOrigin(0, 0);
+        this.darkOverlay.setScrollFactor(0);
+        this.darkOverlay.setDepth(1);
+        this.darkOverlay.setVisible(false);
 
         this.cyclopSpawnTimer = this.time.addEvent({
             delay: this.cyclopTimer,
@@ -269,17 +278,6 @@ export class Game extends Scene {
             );
         } else if (this.plankCount % 5 !== 0) {
             this.speedIncreased = false;
-        }
-
-        if (
-            this.plankCount > 0 &&
-            this.plankCount % 10 === 0 &&
-            !this.rangeIncreased
-        ) {
-            this.rangeAction += 5;
-            this.rangeIncreased = true;
-        } else if (this.plankCount % 10 !== 0) {
-            this.rangeIncreased = false;
         }
 
         (this.cyclops.getChildren() as Cyclop[]).forEach((cyclop) => {

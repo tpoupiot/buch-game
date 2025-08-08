@@ -1,6 +1,6 @@
-import { Boot } from "./scenes/Boot";
-import { GameOver } from "./scenes/GameOver";
-import { Game as MainGame } from "./scenes/Game";
+import { Boot } from "./scenes/buchGame/Boot";
+import { GameOver } from "./scenes/buchGame/GameOver";
+import { Game as MainGame } from "./scenes/buchGame/Game";
 import { AUTO, Game } from "phaser";
 
 //  Find out more information about the Game Config at:
@@ -25,6 +25,9 @@ const config: Phaser.Types.Core.GameConfig = {
     scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    render: {
+        powerPreference: "high-performance",
     },
 };
 

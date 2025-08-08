@@ -11,6 +11,9 @@ export class Character extends Entity {
 
     private throwTime = 0;
     private delayThrow = 500;
+    private footprints: Phaser.GameObjects.Graphics;
+    private lastFootprintTime = 0;
+    private footprintDelay = 300;
 
     constructor(scene: Game, x: number, y: number, texture: "character") {
         super(scene, x, y, texture);
@@ -26,6 +29,26 @@ export class Character extends Entity {
 
         this.rangeCircle = scene.add.graphics();
         this.nearestTreeLine = null;
+        this.footprints = scene.add.graphics();
+    }
+
+    private createFootprint() {
+        const now = this.scene.time.now;
+        if (
+            now - this.lastFootprintTime > this.footprintDelay &&
+            (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)
+        ) {
+            this.lastFootprintTime = now;
+
+            this.scene.tweens.add({
+                targets: this,
+                scaleX: 2.0,
+                scaleY: 1.8,
+                duration: 100,
+                yoyo: true,
+                ease: "Sine.easeInOut",
+            });
+        }
     }
 
     getHit() {
@@ -92,12 +115,14 @@ export class Character extends Entity {
     }
 
     override destroy() {
+        this.footprints.destroy();
         return null;
     }
 
     update() {
         super.update();
         this.drawRangeCircle();
+        this.createFootprint();
 
         if (this.isRangeVisible) {
             this.rangeCircle.setVisible(true);
