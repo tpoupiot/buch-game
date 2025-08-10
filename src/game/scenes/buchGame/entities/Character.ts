@@ -18,6 +18,8 @@ export class Character extends Entity {
     constructor(scene: Game, x: number, y: number, texture: "character") {
         super(scene, x, y, texture);
 
+        this.life = 1000;
+        this.maxLife = this.life;
         this.damage = 1;
         this.delayAttack = 500;
         this.speed = 250;
@@ -32,24 +34,24 @@ export class Character extends Entity {
         this.footprints = scene.add.graphics();
     }
 
-    private createFootprint() {
-        const now = this.scene.time.now;
-        if (
-            now - this.lastFootprintTime > this.footprintDelay &&
-            (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)
-        ) {
-            this.lastFootprintTime = now;
+    // private createFootprint() {
+    //     const now = this.scene.time.now;
+    //     if (
+    //         now - this.lastFootprintTime > this.footprintDelay &&
+    //         (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)
+    //     ) {
+    //         this.lastFootprintTime = now;
 
-            this.scene.tweens.add({
-                targets: this,
-                scaleX: 2.0,
-                scaleY: 1.8,
-                duration: 100,
-                yoyo: true,
-                ease: "Sine.easeInOut",
-            });
-        }
-    }
+    //         this.scene.tweens.add({
+    //             targets: this,
+    //             scaleX: 2.0,
+    //             scaleY: 1.8,
+    //             duration: 100,
+    //             yoyo: true,
+    //             ease: "Sine.easeInOut",
+    //         });
+    //     }
+    // }
 
     getHit() {
         this.setScale(4, 2);
@@ -122,7 +124,7 @@ export class Character extends Entity {
     update() {
         super.update();
         this.drawRangeCircle();
-        this.createFootprint();
+        // this.createFootprint();
 
         if (this.isRangeVisible) {
             this.rangeCircle.setVisible(true);

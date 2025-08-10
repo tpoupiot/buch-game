@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Game } from "../Game";
 
 export class Entity extends Phaser.Physics.Arcade.Sprite {
+    public scene: Game;
     public life: number;
     public maxLife: number;
     public damage: number;
@@ -17,6 +18,7 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
 
     constructor(scene: Game, x: number, y: number, texture: string) {
         super(scene, x, y, texture);
+        this.scene = scene;
 
         scene.add.existing(this);
         scene.physics.add.existing(this);

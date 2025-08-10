@@ -8,8 +8,8 @@ export class Tree extends Entity {
         this.maxLife = 5;
         this.life = this.maxLife;
 
-        this.setScale(3);
-        this.setDepth(10);
+        this.setScale(3, Phaser.Math.Between(3, 3.5));
+        this.setDepth(y / 10);
 
         scene.add.existing(this);
         scene.physics.add.existing(this);

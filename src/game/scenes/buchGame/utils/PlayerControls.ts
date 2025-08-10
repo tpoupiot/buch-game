@@ -78,9 +78,6 @@ export class PlayerControls {
 
         if (Phaser.Input.Keyboard.JustDown(this.keyA)) {
             this.character.isRangeVisible = !this.character.isRangeVisible;
-            console.log(
-                `Range visibility toggled: ${this.character.isRangeVisible}`
-            );
         }
 
         if (this.isLeftClickPressed()) {
@@ -105,5 +102,12 @@ export class PlayerControls {
             dx * this.character.currentSpeed,
             dy * this.character.currentSpeed
         );
+
+        const camera = this.scene.cameras.main;
+        const lerp = 0.1;
+        const targetX = this.character.x - camera.width / 2;
+        const targetY = this.character.y - camera.height / 2;
+        camera.scrollX += (targetX - camera.scrollX) * lerp;
+        camera.scrollY += (targetY - camera.scrollY) * lerp;
     }
 }

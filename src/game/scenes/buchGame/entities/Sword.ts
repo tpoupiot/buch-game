@@ -69,9 +69,9 @@ export class Sword extends Entity {
     preUpdate() {
         if (
             this.x < 0 ||
-            this.x > this.scene.scale.width ||
+            this.x > this.scene.world.worldWidth ||
             this.y < 0 ||
-            this.y > this.scene.scale.height
+            this.y > this.scene.world.worldHeight
         ) {
             this.destroy();
         }

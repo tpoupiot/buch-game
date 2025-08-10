@@ -5,6 +5,7 @@ import { Character } from "./entities/Character";
 import { PlayerControls } from "./utils/PlayerControls";
 import { Tree } from "./entities/Tree";
 import { World } from "./World";
+import { Minimap } from "./utils/Minimap";
 
 export class Game extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
@@ -16,6 +17,8 @@ export class Game extends Scene {
     trees: Phaser.Physics.Arcade.Group;
     char: Character;
     playerControls: PlayerControls;
+    minimap: Minimap;
+    world: World;
 
     moveSpeed: number = 250;
     delayAction: number = 500;
@@ -54,7 +57,7 @@ export class Game extends Scene {
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(0x00b47e);
 
-        new World(this);
+        this.world = new World(this);
 
         this.distanceLines = this.add.graphics();
 
@@ -94,6 +97,8 @@ export class Game extends Scene {
             callbackScope: this,
             loop: true,
         });
+
+        this.minimap = new Minimap(this);
 
         this.gameCounter = this.time.addEvent({
             delay: 1000,
@@ -183,11 +188,18 @@ export class Game extends Scene {
     private initTrees() {
         const treePositions: { x: number; y: number; radius: number }[] = [];
         const treeRadius = 15;
+        const borderMargin = 20 + treeRadius * 2;
 
-        for (let i = 0; i < 10; i++) {
-            const centre_x = Phaser.Math.Between(64, this.scale.width - 64);
-            const centre_y = Phaser.Math.Between(64, this.scale.height - 64);
-            const randomTreeNumber = Phaser.Math.Between(5, 20);
+        for (let i = 0; i < 50; i++) {
+            const centre_x = Phaser.Math.Between(
+                borderMargin,
+                this.world.worldWidth - borderMargin
+            );
+            const centre_y = Phaser.Math.Between(
+                borderMargin,
+                this.world.worldHeight - borderMargin
+            );
+            const randomTreeNumber = Phaser.Math.Between(30, 100);
 
             let tries = 0;
             let placed = 0;
@@ -197,6 +209,16 @@ export class Game extends Scene {
                 const distance = 10 + (200 - 10) * Math.pow(t, 2);
                 const x = centre_x + Math.cos(angle) * distance;
                 const y = centre_y + Math.sin(angle) * distance;
+
+                if (
+                    x < borderMargin ||
+                    y < borderMargin ||
+                    x > this.world.worldWidth - borderMargin ||
+                    y > this.world.worldHeight - borderMargin
+                ) {
+                    tries++;
+                    continue;
+                }
 
                 let overlap = false;
                 for (const pos of treePositions) {
@@ -214,7 +236,6 @@ export class Game extends Scene {
 
                 if (!overlap) {
                     this.trees.add(new Tree(this, x, y));
-
                     treePositions.push({ x, y, radius: treeRadius });
                     placed++;
                 }

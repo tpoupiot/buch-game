@@ -10,8 +10,8 @@ export class World {
     scene: Game;
     private backgroundTiles: Phaser.GameObjects.Image[] = [];
 
-    private worldHeight: number = 5000;
-    private worldWidth: number = 5000;
+    readonly worldHeight: number = 5000;
+    readonly worldWidth: number = 5000;
 
     constructor(scene: Game) {
         this.scene = scene;
@@ -37,8 +37,8 @@ export class World {
     }
 
     private createWorldTiles() {
-        const cols = Math.ceil(this.worldWidth / 64);
-        const rows = Math.ceil(this.worldHeight / 64);
+        const cols = Math.ceil(this.worldWidth / 48);
+        const rows = Math.ceil(this.worldHeight / 48    );
 
         const weightedTileKeys: string[] = [];
 

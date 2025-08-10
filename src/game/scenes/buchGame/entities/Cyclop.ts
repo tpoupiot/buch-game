@@ -10,8 +10,12 @@ export class Cyclop extends Entity {
     isOverlapping: boolean = false;
 
     constructor(scene: Game, target: Entity, x?: number, y?: number) {
-        const posX = x ? x : Phaser.Math.Between(100, scene.scale.width - 100);
-        const posY = y ? y : Phaser.Math.Between(100, scene.scale.height - 100);
+        const posX = x
+            ? x
+            : Phaser.Math.Between(100, scene.world.worldWidth - 100);
+        const posY = y
+            ? y
+            : Phaser.Math.Between(100, scene.world.worldHeight - 100);
         super(scene, posX, posY, "cyclop");
 
         this.maxLife = 5;
@@ -35,8 +39,6 @@ export class Cyclop extends Entity {
                 this.destroyEntityLifeBar();
                 this.destroy();
                 scene.char.takeDamage(this.damage);
-
-                console.log("Cyclop hit the character!");
 
                 if (scene.plankCount > 0) {
                     scene.plankCount -= 1;
