@@ -1,8 +1,8 @@
 import { Game } from "./Game";
 
 const TILE_WEIGHTS = {
-    grass: 5,
-    fern: 2,
+    grass: 15,
+    fern: 5,
     flower: 1,
 };
 
@@ -38,7 +38,7 @@ export class World {
 
     private createWorldTiles() {
         const cols = Math.ceil(this.worldWidth / 48);
-        const rows = Math.ceil(this.worldHeight / 48    );
+        const rows = Math.ceil(this.worldHeight / 48);
 
         const weightedTileKeys: string[] = [];
 

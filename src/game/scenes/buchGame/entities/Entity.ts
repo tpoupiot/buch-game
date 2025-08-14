@@ -103,20 +103,53 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
 
     takeDamage(damage: number) {
         this.life -= damage;
+
+        const particles = this.scene.add.particles(0, 0, "grass", {
+            speed: { min: 50, max: 100 },
+            scale: { start: 0.75, end: 0 },
+            alpha: { start: 1, end: 0 },
+            tint: 0xff0000,
+            lifespan: 500,
+            quantity: 0,
+            angle: { min: 0, max: 360 },
+        });
+
+        particles.emitParticleAt(this.x, this.y, 20);
+        particles.setDepth(this.depth - 1);
+
+        // Destroy particles after animation
+        this.scene.time.delayedCall(500, () => {
+            particles.destroy();
+        });
+
         if (this.life <= 0) {
             this.destroyEntityLifeBar();
             this.destroy();
         } else {
             this.updateEntityLifeBar();
-
-            this.setScale(4, 2);
+            this.setRotation(Phaser.Math.DegToRad(-25));
             this.setTint(0xff0000);
+
             this.scene.tweens.add({
                 targets: this,
-                scale: 2,
-                tint: 0xffffff,
+                rotation: Phaser.Math.DegToRad(25),
+                tint: 0xff0000,
                 duration: 100,
                 ease: "Sine.easeInOut",
+
+                onComplete: () => {
+                    this.scene.tweens.add({
+                        targets: this,
+                        rotation: 0,
+                        tint: 0xffffff,
+                        duration: 100,
+                        ease: "Sine.easeInOut",
+                        onComplete: () => {
+                            this.setScale(2);
+                            this.setTint(0xffffff);
+                        },
+                    });
+                },
             });
         }
     }
@@ -143,7 +176,7 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
                 .image(this.x, this.y, "character")
                 .setScale(2)
                 .setOrigin(0.5, 0.5)
-                .setTint(0xffffff)
+                .setTint(0x00ffff)
                 .setAlpha(0.5 - i * 0.1)
                 .setDepth(this.depth - (i + 1));
             fantomes.push(fantome);
@@ -157,7 +190,7 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
             positionsPrecedentes.pop();
 
             for (let i = 0; i < nombreDeFantomes; i++) {
-                const indexPosition = (i + 1) * 3;
+                const indexPosition = i + 1;
                 if (positionsPrecedentes[indexPosition]) {
                     fantomes[i].x = positionsPrecedentes[indexPosition].x;
                     fantomes[i].y = positionsPrecedentes[indexPosition].y;

@@ -12,6 +12,7 @@ export class Game extends Scene {
     background: Phaser.GameObjects.Image;
     gameText: Phaser.GameObjects.Text;
     darkOverlay: Phaser.GameObjects.Rectangle;
+    fpsText: Phaser.GameObjects.Text;
 
     character: Phaser.Physics.Arcade.Sprite;
     trees: Phaser.Physics.Arcade.Group;
@@ -47,6 +48,10 @@ export class Game extends Scene {
     cyclopTimer: number = 2000;
     gameTime: number = 0;
 
+    // Life bar properties
+    lifeBarContainer: Phaser.GameObjects.Container;
+    lifeHearts: Phaser.GameObjects.Sprite[] = [];
+
     constructor() {
         super("Game");
     }
@@ -67,10 +72,11 @@ export class Game extends Scene {
             immovable: true,
         });
 
-        this.char = new Character(this, 100, 100, "character");
+        this.char = new Character(this, 300, 300, "character");
         this.playerControls = new PlayerControls(this, this.char);
 
         this.initCounter();
+        this.initLifeBar();
         this.initTrees();
         this.initCyclops();
         this.createStatIndicator();
@@ -100,7 +106,7 @@ export class Game extends Scene {
 
         this.minimap = new Minimap(this);
 
-        this.gameCounter = this.time.addEvent({
+        const gameCounter = this.time.addEvent({
             delay: 1000,
             callback: () => {
                 this.gameTime += 1;
@@ -109,6 +115,17 @@ export class Game extends Scene {
             callbackScope: this,
             loop: true,
         });
+
+        // Add FPS counter
+        this.fpsText = this.add.text(16, 112, "FPS: 0", {
+            fontFamily: "Arial",
+            fontSize: "16px",
+            color: "#ffffff",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            padding: { left: 8, right: 8, top: 4, bottom: 4 },
+        });
+        this.fpsText.setScrollFactor(0);
+        this.fpsText.setDepth(1);
 
         EventBus.emit("current-scene-ready", this);
     }
@@ -151,6 +168,54 @@ export class Game extends Scene {
 
         this.gameText.setScrollFactor(0);
         this.gameText.setDepth(1);
+    }
+
+    private initLifeBar() {
+        // Create container for life bar in bottom left
+        this.lifeBarContainer = this.add.container(
+            20,
+            this.cameras.main.height - 60
+        );
+        this.lifeBarContainer.setScrollFactor(0);
+        this.lifeBarContainer.setDepth(10000);
+
+        const heartSpacing = 30;
+        const startX = 10;
+        const startY = 0;
+
+        for (let i = 0; i < this.char.life; i++) {
+            const heart = this.add.sprite(
+                startX + i * heartSpacing,
+                startY,
+                "heart"
+            );
+            heart.setScale(2);
+            heart.setOrigin(0, 0);
+
+            if (i < this.char.life) {
+                heart.setTint(0xff0000);
+            } else {
+                heart.setTint(0x666666);
+            }
+
+            this.lifeHearts.push(heart);
+            this.lifeBarContainer.add(heart);
+        }
+    }
+
+    private updateLifeBar() {
+        if (!this.lifeHearts.length) return;
+
+        const currentLife = this.char.life;
+        const heartsToShow = currentLife;
+
+        this.lifeHearts.forEach((heart, index) => {
+            if (index < heartsToShow) {
+                heart.setTint(0xff0000);
+            } else {
+                heart.setTint(0x666666);
+            }
+        });
     }
 
     private createStatIndicator() {
@@ -265,7 +330,113 @@ export class Game extends Scene {
                 }
             });
 
-        return minDistance < this.char.cuttingRange ? nearestTree : null;
+        return nearestTree && minDistance < this.char.cuttingRange
+            ? nearestTree
+            : null;
+    }
+
+    createLineToCursor() {
+        // Obtenir la position du curseur dans le monde
+        const pointer = this.input.activePointer;
+        const worldPoint = this.cameras.main.getWorldPoint(
+            pointer.x,
+            pointer.y
+        );
+
+        // Position de départ (personnage)
+        const startX = this.char.x;
+        const startY = this.char.y;
+
+        // Position de fin (curseur)
+        const endX = worldPoint.x;
+        const endY = worldPoint.y;
+
+        // Calculer la direction du vecteur
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance === 0) return;
+
+        // Normaliser le vecteur direction
+        const dirX = dx / distance;
+        const dirY = dy / distance;
+
+        // Trouver le premier arbre touché par la ligne
+        let hitTree: Tree | null = null;
+        let hitDistance = distance;
+
+        this.trees
+            .getChildren()
+            .forEach((gameObject: Phaser.GameObjects.GameObject) => {
+                const tree = gameObject as Tree;
+
+                // Calculer la distance perpendiculaire de l'arbre à la ligne
+                const treeToStartX = tree.x - startX;
+                const treeToStartY = tree.y - startY;
+
+                // Projection du vecteur arbre-début sur la direction de la ligne
+                const projection = treeToStartX * dirX + treeToStartY * dirY;
+
+                // Si la projection est négative, l'arbre est derrière le personnage
+                if (projection < 0) return;
+
+                // Si la projection est plus grande que la distance totale, l'arbre est au-delà du curseur
+                if (projection > distance) return;
+
+                // Calculer la distance perpendiculaire de l'arbre à la ligne
+                const perpendicularX = tree.x - (startX + dirX * projection);
+                const perpendicularY = tree.y - (startY + dirY * projection);
+                const perpendicularDistance = Math.sqrt(
+                    perpendicularX * perpendicularX +
+                        perpendicularY * perpendicularY
+                );
+
+                // Vérifier si l'arbre est assez proche de la ligne (rayon de collision)
+                const treeRadius = 20; // Rayon approximatif de l'arbre
+                if (perpendicularDistance <= treeRadius) {
+                    // Cet arbre est touché par la ligne
+                    if (projection < hitDistance) {
+                        hitTree = tree;
+                        hitDistance = projection;
+                    }
+                }
+            });
+
+        // Dessiner la ligne
+        this.distanceLines.clear();
+        this.distanceLines.lineStyle(2, 0x00ff00, 1);
+
+        if (hitTree) {
+            // Ligne s'arrête sur l'arbre touché
+            const hitX = startX + dirX * hitDistance;
+            const hitY = startY + dirY * hitDistance;
+
+            this.distanceLines.beginPath();
+            this.distanceLines.moveTo(startX, startY);
+            this.distanceLines.lineTo(hitX, hitY);
+            this.distanceLines.strokePath();
+
+            // Ajouter un effet visuel sur l'arbre touché
+            this.tweens.add({
+                targets: hitTree,
+                alpha: 0.5,
+                duration: 200,
+                yoyo: true,
+                ease: "Sine.easeInOut",
+            });
+        } else {
+            // Ligne va jusqu'au curseur
+            this.distanceLines.beginPath();
+            this.distanceLines.moveTo(startX, startY);
+            this.distanceLines.lineTo(endX, endY);
+            this.distanceLines.strokePath();
+        }
+
+        // Effacer la ligne après un délai
+        this.time.delayedCall(1000, () => {
+            this.distanceLines.clear();
+        });
     }
 
     update() {
@@ -284,6 +455,12 @@ export class Game extends Scene {
 
         this.playerControls.update();
         this.char.update();
+
+        // Update life bar
+        this.updateLifeBar();
+
+        // Update FPS counter
+        this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);
 
         if (
             this.plankCount > 0 &&

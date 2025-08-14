@@ -14,11 +14,17 @@ export class Character extends Entity {
     private footprints: Phaser.GameObjects.Graphics;
     private lastFootprintTime = 0;
     private footprintDelay = 300;
+    private scaleHeight = 2;
+
+    private isMoving: boolean = false;
+    private animationTimer: number = 0;
+    private animationDelay: number = 150;
+    private currentFrame: number = 0;
 
     constructor(scene: Game, x: number, y: number, texture: "character") {
         super(scene, x, y, texture);
 
-        this.life = 1000;
+        this.life = 5;
         this.maxLife = this.life;
         this.damage = 1;
         this.delayAttack = 500;
@@ -34,31 +40,47 @@ export class Character extends Entity {
         this.footprints = scene.add.graphics();
     }
 
-    // private createFootprint() {
-    //     const now = this.scene.time.now;
-    //     if (
-    //         now - this.lastFootprintTime > this.footprintDelay &&
-    //         (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)
-    //     ) {
-    //         this.lastFootprintTime = now;
+    private createFootprint() {
+        if (!this.body) return;
 
-    //         this.scene.tweens.add({
-    //             targets: this,
-    //             scaleX: 2.0,
-    //             scaleY: 1.8,
-    //             duration: 100,
-    //             yoyo: true,
-    //             ease: "Sine.easeInOut",
-    //         });
-    //     }
-    // }
+        const now = this.scene.time.now;
+        if (
+            now - this.lastFootprintTime > this.footprintDelay &&
+            (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)
+        ) {
+            this.lastFootprintTime = now;
+
+            this.scene.tweens.add({
+                targets: this,
+                rotation: 0.05,
+                duration: 100,
+                yoyo: true,
+                ease: "Sine.easeInOut",
+
+                onComplete: () => {
+                    this.setScale(2, 2);
+                    this.scene.tweens.add({
+                        targets: this,
+                        rotation: -0.05,
+                        duration: 100,
+                        ease: "Sine.easeInOut",
+                        yoyo: true,
+
+                        onComplete: () => {
+                            this.setRotation(0);
+                        },
+                    });
+                },
+            });
+        }
+    }
 
     getHit() {
         this.setScale(4, 2);
         this.setTint(0xff0000);
         this.scene.tweens.add({
             targets: this,
-            scale: 2,
+            scale: this.scaleHeight,
             tint: 0xffffff,
             duration: 100,
             ease: "Sine.easeInOut",
@@ -111,7 +133,7 @@ export class Character extends Entity {
 
     handleThrowAction() {
         if (this.canThrow()) {
-            const sword = new Sword(this.scene, this.x, this.y, this);
+            new Sword(this.scene, this.x, this.y, this);
             this.throwTime = this.scene.time.now;
         }
     }
@@ -124,12 +146,43 @@ export class Character extends Entity {
     update() {
         super.update();
         this.drawRangeCircle();
-        // this.createFootprint();
+        this.createFootprint();
 
         if (this.isRangeVisible) {
             this.rangeCircle.setVisible(true);
         } else {
             this.rangeCircle.setVisible(false);
+        }
+
+        this.updateMovementAnimation();
+    }
+
+    private updateMovementAnimation() {
+        if (!this.body) return;
+
+        const velocity = this.body.velocity;
+        const isMoving = Math.abs(velocity.x) > 10 || Math.abs(velocity.y) > 10;
+
+        if (isMoving !== this.isMoving) {
+            this.isMoving = isMoving;
+            if (!isMoving) {
+                this.setTexture("character");
+                this.currentFrame = 0;
+            }
+        }
+
+        if (isMoving) {
+            const now = this.scene.time.now;
+            if (now - this.animationTimer > this.animationDelay) {
+                this.animationTimer = now;
+                this.currentFrame = this.currentFrame === 0 ? 1 : 0;
+
+                const textureKey =
+                    this.currentFrame === 0
+                        ? "character-moving1"
+                        : "character-moving2";
+                this.setTexture(textureKey);
+            }
         }
     }
 }

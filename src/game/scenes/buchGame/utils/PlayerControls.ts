@@ -92,6 +92,10 @@ export class PlayerControls {
             this.character.dash();
         }
 
+        if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+            this.scene.createLineToCursor();
+        }
+
         if (dx !== 0 && dy !== 0) {
             const normalFactor = 1 / Math.sqrt(2);
             dx *= normalFactor;
