@@ -16,7 +16,7 @@ function App() {
                 <div className="menu">
                     <div className="title">
                         <h1>Buchgame</h1>
-                        <p>v1.0.0</p>
+                        <p>v0.0.2</p>
                     </div>
                     <div className="button">
                         <button
