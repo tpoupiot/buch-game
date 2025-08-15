@@ -11,7 +11,7 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
     public currentSpeed: number;
     private lifeBar: Phaser.GameObjects.Graphics | null = null;
 
-    private dashDuration: number = 150;
+    private dashDuration: number = 100;
     private dashSpeed: number = 800;
     private dashCooldown: number = 1000;
     private dashTime: number = 0;
@@ -61,6 +61,13 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
     updateEntityLifeBar() {
         if (this.lifeBar) {
             const life = this.life ?? this.maxLife;
+
+            if (this.life === this.maxLife) {
+                this.lifeBar.setVisible(false);
+            } else {
+                this.lifeBar.setVisible(true);
+            }
+
             const barWidth = 40;
             const lifeWidth = barWidth * (life / this.maxLife);
             this.lifeBar.clear();
@@ -159,11 +166,23 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
-        const nombreDeFantomes = 4;
+        this.fantomatique();
+
+        const vitesseNormale = this.currentSpeed;
+        this.currentSpeed = this.dashSpeed;
+
+        this.scene.time.delayedCall(this.dashDuration, () => {
+            this.currentSpeed = vitesseNormale;
+        });
+
+        this.dashTime = this.scene.time.now;
+    }
+
+    fantomatique() {
+        const nombreDeFantomes = 5;
         const fantomes: Phaser.GameObjects.Image[] = [];
         const positionsPrecedentes: { x: number; y: number }[] = [];
 
-        // Stocke les positions précédentes pour l'effet de traînée
         for (let i = 0; i < (nombreDeFantomes + 1) * 3; i++) {
             positionsPrecedentes.push({
                 x: this.x,
@@ -200,18 +219,9 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
 
         this.scene.events.on("update", updateFantomes);
 
-        const vitesseNormale = this.currentSpeed;
-        this.currentSpeed = this.dashSpeed;
-
-        this.scene.time.delayedCall(this.dashDuration, () => {
-            this.currentSpeed = vitesseNormale;
-        });
-
         this.scene.time.delayedCall(this.dashDuration, () => {
             fantomes.forEach((f) => f.destroy());
             this.scene.events.off("update", updateFantomes);
         });
-
-        this.dashTime = this.scene.time.now;
     }
 }

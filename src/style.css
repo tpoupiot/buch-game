@@ -1,0 +1,47 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Tiny5&display=swap");
+@import "tailwindcss";
+
+@theme {
+    --font-geist: "Geist", Helvetica, sans-serif;
+    --font-tiny5: "Tiny5", Helvetica, sans-serif;
+}
+
+.animation-character-walk {
+    animation: characterWalk 0.5s steps(2) infinite;
+}
+
+.character-walk {
+    background-image: url("/assets/char.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+@keyframes characterWalk {
+    0% {
+        background-image: url("/assets/char-m-1.png");
+    }
+    50% {
+        background-image: url("/assets/char-m-1.png");
+    }
+    50.1% {
+        background-image: url("/assets/char-m-2.png");
+    }
+    100% {
+        background-image: url("/assets/char-m-2.png");
+    }
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Geist", Helvetica, sans-serif;
+}
+
+.game-container {
+    position: relative;
+}
+
+canvas {
+    background-color: #ffffff;
+}
