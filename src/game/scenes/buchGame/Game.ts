@@ -6,6 +6,7 @@ import { PlayerControls } from "./utils/PlayerControls";
 import { Tree } from "./entities/Tree";
 import { World } from "./World";
 import { Minimap } from "./utils/Minimap";
+import Inventory from "./utils/Inventory";
 
 export class Game extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
@@ -13,6 +14,9 @@ export class Game extends Scene {
     gameText: Phaser.GameObjects.Text;
     darkOverlay: Phaser.GameObjects.Rectangle;
     fpsText: Phaser.GameObjects.Text;
+
+    // Inventory (données uniquement, pas d'UI Phaser)
+    inventory: Inventory;
 
     character: Phaser.Physics.Arcade.Sprite;
     trees: Phaser.Physics.Arcade.Group;
@@ -75,11 +79,12 @@ export class Game extends Scene {
         this.char = new Character(this, 300, 300, "character");
         this.playerControls = new PlayerControls(this, this.char);
 
-        this.initCounter();
         this.initLifeBar();
         this.initTrees();
         this.initCyclops();
-        this.createStatIndicator();
+
+        // Inventory setup (écriture sessionStorage uniquement)
+        this.inventory = new Inventory();
 
         // Create dark overlay
         this.darkOverlay = this.add.rectangle(
@@ -106,7 +111,7 @@ export class Game extends Scene {
 
         this.minimap = new Minimap(this);
 
-        const gameCounter = this.time.addEvent({
+        this.time.addEvent({
             delay: 1000,
             callback: () => {
                 this.gameTime += 1;
@@ -117,7 +122,7 @@ export class Game extends Scene {
         });
 
         // Add FPS counter
-        this.fpsText = this.add.text(16, 112, "FPS: 0", {
+        this.fpsText = this.add.text(16, 16, "FPS: 0", {
             fontFamily: "Arial",
             fontSize: "16px",
             color: "#ffffff",
@@ -141,33 +146,18 @@ export class Game extends Scene {
         if (nearestTree && this.char.canCut()) {
             this.char.cut();
 
-            nearestTree.setRotation(Phaser.Math.DegToRad(25));
-            this.tweens.add({
-                targets: nearestTree,
-                rotation: 0,
-                duration: 100,
-                ease: "Sine.easeInOut",
-            });
-            nearestTree.setScale(nearestTree.scale * 0.8);
+            nearestTree.takeDamage(1);
 
-            if (nearestTree.scale <= 1) {
-                nearestTree.destroy();
+            if (nearestTree.life <= 0) {
                 this.plankCount++;
                 this.gameText.setText(`Planks: ${this.plankCount}`);
+                this.trees.remove(nearestTree, true, true);
+                if (this.inventory) {
+                    this.inventory.addItem({ id: "wood", name: "Bois" }, 1);
+                    EventBus.emit("adding-item", nearestTree);
+                }
             }
         }
-    }
-
-    private initCounter() {
-        this.gameText = this.add.text(16, 16, "Planks: 0", {
-            fontFamily: "Arial",
-            color: "#ffffff",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            padding: { left: 8, right: 8, top: 4, bottom: 4 },
-        });
-
-        this.gameText.setScrollFactor(0);
-        this.gameText.setDepth(1);
     }
 
     private initLifeBar() {
@@ -216,38 +206,6 @@ export class Game extends Scene {
                 heart.setTint(0x666666);
             }
         });
-    }
-
-    private createStatIndicator() {
-        // Affiche la vitesse de déplacement et le cooldown de l'épée
-        const style = {
-            fontFamily: "Arial",
-            fontSize: "16px",
-            color: "#ffffff",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            padding: { left: 8, right: 8, top: 4, bottom: 4 },
-        };
-
-        const moveSpeedText = this.add.text(
-            16,
-            48,
-            `Vitesse : ${this.moveSpeed}`,
-            style
-        );
-        moveSpeedText.setScrollFactor(0);
-        moveSpeedText.setDepth(1);
-
-        const swordCooldownText = this.add.text(
-            16,
-            80,
-            `Cooldown épée : ${(this.swordCooldown / 1000).toFixed(2)}s`,
-            style
-        );
-        swordCooldownText.setScrollFactor(0);
-        swordCooldownText.setDepth(1);
-
-        (this as any).moveSpeedText = moveSpeedText;
-        (this as any).swordCooldownText = swordCooldownText;
     }
 
     private initTrees() {
@@ -477,10 +435,6 @@ export class Game extends Scene {
         } else if (this.plankCount % 5 !== 0) {
             this.speedIncreased = false;
         }
-
-        (this.cyclops.getChildren() as Cyclop[]).forEach((cyclop) => {
-            cyclop.update();
-        });
 
         if (this.char.life === 0) {
             this.scene.launch("GameOver", {

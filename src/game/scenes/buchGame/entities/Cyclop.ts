@@ -1,3 +1,4 @@
+import { EventBus } from "../../../EventBus";
 import { Game } from "../Game";
 import { Entity } from "./Entity";
 
@@ -14,6 +15,7 @@ export class Cyclop extends Entity {
     private lastFootprintTime = 0;
     private footprintDelay = 300;
     private isBig: boolean = false;
+    private walking: Phaser.Tweens.Tween;
 
     constructor(scene: Game, target: Entity, x?: number, y?: number) {
         const posX = x
@@ -41,9 +43,6 @@ export class Cyclop extends Entity {
         this.createEntityLifeBar();
         this.setCollideWorldBounds(true);
         this.currentSpeed = this.cyclopSpeed;
-
-        this.dashSpeed = 400;
-        this.dashCooldown = 10000;
 
         scene.physics.add.overlap(
             scene.char,
@@ -89,10 +88,24 @@ export class Cyclop extends Entity {
         );
 
         scene.physics.add.collider(this, scene.cyclops);
+
+        this.walking = scene.tweens.add({
+            targets: this,
+            rotation: {
+                from: this.isBig ? -0.05 : -0.05,
+                to: this.isBig ? 0.05 : 0.05,
+            },
+            duration: 250,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+        });
     }
 
     takeDamage(damage: number) {
         this.life -= damage;
+
+        this.walking.pause();
 
         const particles = this.scene.add.particles(0, 0, "grass", {
             speed: { min: 50, max: 100 },
@@ -115,6 +128,14 @@ export class Cyclop extends Entity {
         if (this.life <= 0) {
             this.destroyEntityLifeBar();
             this.destroy();
+
+            if (this.scene.inventory) {
+                this.scene.inventory.addItem(
+                    { id: "cyclop_heart", name: "Coeur de cyclop" },
+                    1
+                );
+                EventBus.emit("adding-item");
+            }
         } else {
             this.updateEntityLifeBar();
             this.setRotation(Phaser.Math.DegToRad(-25));
@@ -142,6 +163,8 @@ export class Cyclop extends Entity {
                 },
             });
         }
+
+        this.walking.resume();
     }
 
     private createFootprint() {
@@ -153,33 +176,10 @@ export class Cyclop extends Entity {
             (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)
         ) {
             this.lastFootprintTime = now;
-
-            this.scene.tweens.add({
-                targets: this,
-                rotation: 0.05,
-                duration: 125,
-                yoyo: true,
-                ease: "Sine.easeInOut",
-
-                onComplete: () => {
-                    this.setScale(this.isBig ? 3 : 2);
-                    this.scene.tweens.add({
-                        targets: this,
-                        rotation: -0.05,
-                        duration: 125,
-                        ease: "Sine.easeInOut",
-                        yoyo: true,
-
-                        onComplete: () => {
-                            this.setRotation(0);
-                        },
-                    });
-                },
-            });
         }
     }
 
-    update() {
+    preUpdate() {
         super.update();
         const cyclopAngle = Phaser.Math.Angle.Between(
             this.x,
@@ -192,11 +192,6 @@ export class Cyclop extends Entity {
             Math.cos(cyclopAngle) * this.currentSpeed,
             Math.sin(cyclopAngle) * this.currentSpeed
         );
-
-        // Try to dash every time it's available
-        if (this.scene.time.now > this.dashTime + this.dashCooldown) {
-            this.dash();
-        }
 
         this.updateEntityLifeBar();
         this.createFootprint();

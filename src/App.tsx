@@ -1,5 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { IRefPhaserGame, PhaserGame } from "./PhaserGame";
+import Inventory, {
+    InventoryItem,
+} from "./game/scenes/buchGame/utils/Inventory";
+import { EventBus } from "./game/EventBus";
 
 function ControlKey({
     keyName,
@@ -22,17 +26,19 @@ function ActionButton({
     onClick,
     text,
     color = "#ee6644",
+    className = "",
 }: {
     onClick: () => void;
     text: string;
     color?: string;
+    className?: string;
 }) {
     return (
         <div className="flex w-full h-fit relative mb-4 group">
             <button
                 onClick={onClick}
                 style={{ backgroundColor: color }}
-                className="w-full p-2.5 text-[#fff7ef] border-none cursor-pointer transition-all duration-200 font-tiny5 uppercase z-10 group-hover:translate-y-[5px]"
+                className={`w-full p-2.5 text-[#fff7ef] border-none cursor-pointer transition-all duration-200 font-tiny5 uppercase z-10 group-hover:translate-y-[5px] ${className}`}
             >
                 {text}
             </button>
@@ -44,21 +50,156 @@ function ActionButton({
     );
 }
 
-function ItemSlot() {
-    return <div className="w-[50px] h-[50px] bg-[#E5DED7]"></div>;
+function ItemSlot({
+    isActive,
+    iconSrc,
+    quantity,
+    tooltip,
+}: {
+    isActive?: boolean;
+    iconSrc?: string;
+    quantity?: number;
+    tooltip?: string;
+}) {
+    return (
+        <div className="w-[50px] h-[50px] bg-[#E5DED7] group relative">
+            {(isActive || iconSrc) && (
+                <div className="relative w-full h-full flex items-center justify-center">
+                    <img
+                        className="w-full h-full object-contain p-1 box-border"
+                        style={{
+                            imageRendering: "pixelated",
+                        }}
+                        src={iconSrc ?? "/assets/tree.png"}
+                    />
+                    {quantity !== undefined && (
+                        <>
+                            <span className="z-1 absolute bottom-0 -right-0 text-xs font-geist font-bold text-black px-0.5 py-0">
+                                {quantity}
+                            </span>
+                            <span className="z-0 absolute bottom-0 -right-0 text-xs font-geist font-bold text-[#FAF2EB] px-0.5 py-0 [-webkit-text-stroke:4px]">
+                                {quantity}
+                            </span>
+                        </>
+                    )}
+                    {tooltip && (
+                        <div className="font-tiny5 uppercase absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-sm  opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {tooltip}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function App() {
     const phaserRef = useRef<IRefPhaserGame | null>(null);
     const [gameStarted, setGameStarted] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
+    const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+    const inventory = useMemo(() => new Inventory(), []);
+    const [invItems, setInvItems] = useState<InventoryItem[]>([]);
 
-    const currentScene = (scene: Phaser.Scene) => {};
+    const currentScene = () => {};
+
+    useEffect(() => {
+        const onAddItem = () => {
+            const raw = window.sessionStorage.getItem("buch.inventory");
+            if (raw) {
+                try {
+                    const decrypted = inventory["decrypt"](raw);
+                    const parsed = JSON.parse(decrypted) as InventoryItem[];
+                    setInvItems(parsed);
+                } catch (e) {
+                    console.error(
+                        "Erreur lors du chargement de l'inventaire:",
+                        e
+                    );
+                }
+            }
+        };
+
+        onAddItem(); // Initial load
+
+        EventBus.on("adding-item", onAddItem);
+
+        return () => {
+            EventBus.off("adding-item", onAddItem);
+        };
+    }, [inventory]);
+
+    const getIconForItem = (id: string) => {
+        switch (id) {
+            case "wood":
+                return "/assets/tree.png";
+            case "stone":
+                return "/assets/star.png";
+            case "cyclop_heart":
+                return "/assets/heart.png";
+            default:
+                return "/assets/star.png";
+        }
+    };
+
+    const INVENTORY_SLOTS = 21;
+    const sortedItems = [...invItems].sort((a, b) => a.id.localeCompare(b.id));
+    const slots = Array.from({ length: INVENTORY_SLOTS }).map((_, i) => {
+        const item = sortedItems[i];
+        if (!item) return { empty: true } as const;
+        return {
+            empty: false,
+            icon: getIconForItem(item.id),
+            quantity: item.quantity,
+            name: item.name,
+        } as const;
+    });
 
     return (
         <div className="w-screen h-screen box-border overflow-hidden bg-gradient-to-b from-[#fff7ef] from-60% to-[#ee6644] to-60% text-black animate-[fadeIn_2s_ease-in-out]">
             {gameStarted ? (
-                <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />
+                <>
+                    <PhaserGame
+                        ref={phaserRef}
+                        currentActiveScene={currentScene}
+                    />
+                    <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
+                        <ActionButton
+                            className="outline-none"
+                            onClick={() => setIsInventoryOpen((p) => !p)}
+                            text={
+                                isInventoryOpen
+                                    ? "Fermer l'inventaire"
+                                    : "Ouvrir l'inventaire"
+                            }
+                        />
+                    </div>
+                    {isInventoryOpen && (
+                        <div className="absolute top-20 right-4 bg-[#FAF2EB] p-3 shadow-lg border border-black/10 z-50">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="font-tiny5 font-medium">
+                                    INVENTAIRE
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-7 gap-2.5 w-fit">
+                                {slots.map((s, idx) => (
+                                    <ItemSlot
+                                        key={idx}
+                                        iconSrc={s.empty ? undefined : s.icon}
+                                        quantity={
+                                            s.empty ? undefined : s.quantity
+                                        }
+                                        tooltip={
+                                            s.empty
+                                                ? undefined
+                                                : `${s.name}: ${s.quantity}`
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
             ) : (
                 <div className="p-3">
                     <div className="flex mb-5">
@@ -72,13 +213,13 @@ function App() {
 
                     <div className="grid gap-3 mb-5 [grid-template-columns:repeat(2,430px)]">
                         <div className="bg-[#FAF2EB] p-2.5 flex flex-col gap-4">
-                            <div className="">
+                            <div>
                                 <div className="w-full flex justify-between relative">
                                     <div className="flex flex-col items-center gap-2.5">
                                         <ItemSlot /> <ItemSlot /> <ItemSlot />
                                     </div>
                                     <div
-                                        className={`object-contain w-[100px] h-[100px] m-2.5 [image-rendering:pixelated] self-center ${
+                                        className={`object-contain w-[100px] h-[100px] [image-rendering:pixelated] self-center ${
                                             isPlaying &&
                                             "animation-character-walk"
                                         } character-walk`}
@@ -128,7 +269,7 @@ function App() {
                                     <div className="w-full h-[10px] bg-[#E5DED7] overflow-hidden">
                                         <div
                                             className="h-full bg-[#EE6644] transition-all duration-500 ease-in-out"
-                                            style={{ width: "0%" }}
+                                            style={{ width: "10%" }}
                                         ></div>
                                     </div>
                                 </div>
@@ -138,13 +279,17 @@ function App() {
                                     INVENTAIRE
                                 </span>
                                 <div className="grid grid-cols-7 gap-2.5 w-fit">
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
-                                    <ItemSlot /> <ItemSlot /> <ItemSlot />
+                                    {slots.reverse().map((s, idx) => (
+                                        <ItemSlot
+                                            key={idx}
+                                            iconSrc={
+                                                s.empty ? undefined : s.icon
+                                            }
+                                            quantity={
+                                                s.empty ? undefined : s.quantity
+                                            }
+                                        />
+                                    ))}
                                 </div>
                             </div>
                         </div>
